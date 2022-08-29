@@ -1,0 +1,28 @@
+{
+  "name": "rdp-wry-typescript",
+  "version": "1.0.0",
+  "description": "Typescript components for rdp-wry",
+  "main": "app.js",
+  "scripts": {
+    "build": "webpack"
+  },
+  "author": "",
+  "license": "SEE LICENSE IN license.txt",
+  "dependencies": {
+    "@types/react": "^18.0.17",
+    "@types/react-dom": "^18.0.6",
+    "@types/redux": "^3.6.0",
+    "react": "^18.2.0",
+    "react-bootstrap": "^2.5.0",
+    "react-dom": "^18.2.0",
+    "redux": "^4.2.0",
+    "tsc": "^2.0.4",
+    "tslib": "^2.4.0"
+  },
+  "devDependencies": {
+    "ts-loader": "^9.3.1",
+    "typescript": "^4.8.2",
+    "webpack": "^5.74.0",
+    "webpack-cli": "^4.10.0"
+  }
+}

@@ -1,0 +1,14 @@
+[package]
+name = "rdp-wry"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+wv = { path="../wv" }
+ws = { path="../ws" }
+rdp = { path="../rdp" }
+env_logger="0.9"
+log="0.4"
+tokio={ version="1", features = [ "macros", "rt", "time", "sync"]}

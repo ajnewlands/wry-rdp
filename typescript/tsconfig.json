@@ -1,0 +1,23 @@
+{
+    "compilerOptions": {
+        "lib": [
+            "es2019",
+            "dom"
+        ],
+        "module": "CommonJS",
+        "importHelpers": true,
+        "target": "es2015",
+        "jsx": "react",
+        "sourceMap": true,
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "inlineSources": true,
+        "diagnostics": true,
+        "outDir": "out",
+        "types": [
+            "react",
+            "react-dom"
+        ]
+    }
+}
