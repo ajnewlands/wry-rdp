@@ -6,17 +6,15 @@ import Col from 'react-bootstrap/Col';
 import { RootState } from './store';
 import { useSelector, useDispatch } from 'react-redux';
 import rdpSlice from './reducers/rdpSlice';
-import { setPort } from './reducers/rdpSlice';
+import { setPort, setUser, setHost, setPass, connect } from './reducers/rdpSlice';
 
 function ConfigModal() {
     const dispatch = useDispatch();
     const [show, setShow] = React.useState(true);
     const port = useSelector((state: RootState) => state.rdp.port);
-
-
-    const [host, setHost] = React.useState("127.0.0.1");
-    const [user, setUser] = React.useState("");
-    const [password, setPassword] = React.useState("");
+    const host= useSelector((state: RootState) => state.rdp.host);
+    const password= useSelector((state: RootState) => state.rdp.password);
+    const user= useSelector((state: RootState) => state.rdp.username);
 
     return (
       <Modal show={show} onHide={()=>setShow(false)}>
@@ -30,7 +28,7 @@ function ConfigModal() {
                 <span>Username</span>
                 </Col>
                 <Col xs={8}>
-                <input value={user} className="w-100" onChange={e=>setUser(e.target.value)}></input>
+                <input value={user} className="w-100" onChange={e=>dispatch(setUser(e.target.value))}></input>
                 </Col>
             </Row>
             <Row className="my-1">
@@ -38,7 +36,7 @@ function ConfigModal() {
                 <span>Password</span>
                 </Col>
                 <Col xs={8}>
-                <input value={password} className="w-100" onChange={e=>setPassword(e.target.value)}></input>
+                <input value={password} className="w-100" onChange={e=>dispatch(setPass(e.target.value))}></input>
                 </Col>
             </Row>
             <Row className="my-1">
@@ -46,7 +44,7 @@ function ConfigModal() {
                 <span>Hostname</span>
                 </Col>
                 <Col xs={8}>
-                <input value={host} className="w-100" onChange={e=>setHost(e.target.value)}></input>
+                <input value={host} className="w-100" onChange={e=>dispatch(setHost(e.target.value))}></input>
                 </Col>
             </Row>
             <Row className="my-1">
@@ -60,7 +58,7 @@ function ConfigModal() {
         </Modal.Body>
 
         <Modal.Footer>
-          <Button variant="primary">Connect</Button>
+          <Button variant="primary" onClick={_=> dispatch(connect())}>Connect</Button>
         </Modal.Footer>
       </Modal>
   );

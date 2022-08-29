@@ -54,6 +54,7 @@ impl MainWindow {
             };
 
         let webview = WebViewBuilder::new(window)?
+            .with_initialization_script(&format!("var WEBSOCKETADDRESS='127.0.0.1:{}';", port))
             .with_custom_protocol("app".into(), move |request| {
                 info!("Request for URI: {}", request.uri());
                 match request.uri().replace("app://", "").as_str() {
@@ -97,11 +98,6 @@ impl MainWindow {
                     event: WindowEvent::CloseRequested,
                     ..
                 } => *control_flow = ControlFlow::Exit,
-                Event::UserEvent(CustomEvents::MakeVisible) => {
-                    let js = format!("connectWebsocket('localhost:{}');", self.port);
-                    info!("Issueing JS: {}", js);
-                    self.webview.evaluate_script(&js).unwrap();
-                }
                 _ => (),
             }
         });
