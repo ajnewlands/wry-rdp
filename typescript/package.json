@@ -9,13 +9,14 @@
   "author": "",
   "license": "SEE LICENSE IN license.txt",
   "dependencies": {
+    "@reduxjs/toolkit": "^1.8.5",
     "@types/react": "^18.0.17",
     "@types/react-dom": "^18.0.6",
     "@types/redux": "^3.6.0",
     "react": "^18.2.0",
     "react-bootstrap": "^2.5.0",
     "react-dom": "^18.2.0",
-    "redux": "^4.2.0",
+    "react-redux": "^8.0.2",
     "tsc": "^2.0.4",
     "tslib": "^2.4.0"
   },

@@ -2,6 +2,8 @@ import ConfigModal from './config-modal';
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { createRoot } from 'react-dom/client';
+import { Provider } from 'react-redux'
+import { store } from './store';
 
 import { createBootstrapComponent } from 'react-bootstrap/esm/ThemeProvider';
 
@@ -33,4 +35,4 @@ export function connectWebsocket(address) {
 window.ipc.postMessage('make-visible');
 
 let root = createRoot(document.getElementById('app-root'));
-root.render(<ConfigModal />);
+root.render(<Provider store={store}> <ConfigModal /> </Provider>);
