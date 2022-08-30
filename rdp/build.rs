@@ -51,6 +51,7 @@ fn main() {
         .allowlist_var("RDP.*")
         .allowlist_var("WAIT_.*")
         .allowlist_var("PTR.*")
+        .allowlist_var("KBD.*")
         .header("rdp-wrapper.h")
         .clang_arg("-ID:/vcpkg/installed/x64-windows/include")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))

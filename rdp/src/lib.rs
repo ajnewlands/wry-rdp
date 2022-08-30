@@ -213,7 +213,7 @@ fn rdp_lasterror(tag: &str, instance: *mut rdp::freerdp) -> u32 {
     }
 }
 
-extern "C" fn handle_mouse_input(input: *mut rdp_input, mouse_event: MouseEvent) {
+fn handle_mouse_input(input: *mut rdp_input, mouse_event: MouseEvent) {
     unsafe {
         let mut flags = 0;
         flags |= match mouse_event.action.as_str() {
@@ -229,7 +229,7 @@ extern "C" fn handle_mouse_input(input: *mut rdp_input, mouse_event: MouseEvent)
             _ => 0,
         };
 
-        let rc = freerdp_input_send_mouse_event(
+        let _rc = freerdp_input_send_mouse_event(
             input,
             flags as u16,
             mouse_event.x.try_into().unwrap(),
@@ -238,16 +238,45 @@ extern "C" fn handle_mouse_input(input: *mut rdp_input, mouse_event: MouseEvent)
     }
 }
 
-extern "C" fn handle_input(input: *mut rdp_input, event: FromBrowserMessages) {
+fn handle_key_input(input: *mut rdp_input, key_event: KeyboardEvent) {
+    let flags = match key_event.action.as_str() {
+        "up" => rdp::KBD_FLAGS_RELEASE,
+        _ => 0,
+    } as u16;
+
+    let code;
+    if key_event.key.len() == 1 {
+        code = key_event.key.encode_utf16().next().unwrap();
+        unsafe {
+            rdp::freerdp_input_send_unicode_keyboard_event(input, flags, code);
+        }
+    } else {
+        let code = match key_event.key.as_str() {
+            "Backspace" => 0x0e,
+            other => {
+                log::warn!("Disregarding unhandled special key {}", other);
+                return;
+            }
+        };
+        unsafe {
+            rdp::freerdp_input_send_keyboard_event(input, flags, code);
+        }
+    };
+}
+
+fn handle_input(input: *mut rdp_input, event: FromBrowserMessages) {
     match event {
         FromBrowserMessages::MouseEvent(me) => {
             handle_mouse_input(input, me);
+        }
+        FromBrowserMessages::KeyboardEvent(ke) => {
+            handle_key_input(input, ke);
         }
         unhandled => log::warn!("Discarding unhandled input event: {:?}", unhandled),
     }
 }
 
-extern "C" fn rdp_client_thread_proc(
+fn rdp_client_thread_proc(
     instance: *mut rdp::freerdp,
     mut command_rx: mpsc::UnboundedReceiver<FromBrowserMessages>,
 ) -> bool {

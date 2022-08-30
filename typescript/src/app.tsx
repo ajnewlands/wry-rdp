@@ -57,8 +57,14 @@ const mouseUpOrDown = (ev: MouseEvent, down: boolean) => {
 
 }
 
+const keyUpOrDown = (ev: KeyboardEvent, down: boolean) => {
+    WEBSOCKET.send(JSON.stringify({ KeyboardEvent: { action: down ? "down" : "up", key: ev.key}}));
+}
+
 canvas.onmousedown = (ev) => {
     mouseUpOrDown(ev, true)
+    // The canvas needs to have focus in order to receive key events.
+    canvas.focus();
     ev.preventDefault();
 };
 canvas.onmouseup = (ev) => {
@@ -75,4 +81,14 @@ canvas.onmousemove = (ev) => {
     }
 }
 canvas.oncontextmenu = () => false;
+
+canvas.onkeydown = (ev) => {
+    keyUpOrDown(ev, true);
+    ev.preventDefault();
+}
+
+canvas.onkeyup = (ev) => {
+    keyUpOrDown(ev, false);
+    ev.preventDefault();
+}
 
