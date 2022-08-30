@@ -1002,6 +1002,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "messages"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1368,6 +1376,8 @@ dependencies = [
  "anyhow",
  "bindgen",
  "log",
+ "messages",
+ "tokio",
 ]
 
 [[package]]
@@ -1714,6 +1724,7 @@ dependencies = [
  "memchr",
  "mio",
  "once_cell",
+ "parking_lot",
  "pin-project-lite",
  "socket2",
  "tokio-macros",
@@ -2156,6 +2167,9 @@ dependencies = [
  "anyhow",
  "futures-util",
  "log",
+ "messages",
+ "rdp",
+ "serde_json",
  "tokio",
  "tokio-tungstenite",
 ]

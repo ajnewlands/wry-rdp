@@ -11,10 +11,10 @@ import { setPort, setUser, setHost, setPass, connect } from './reducers/rdpSlice
 function ConfigModal() {
     const dispatch = useDispatch();
     const [show, setShow] = React.useState(true);
-    const port = useSelector((state: RootState) => state.rdp.port);
-    const host= useSelector((state: RootState) => state.rdp.host);
-    const password= useSelector((state: RootState) => state.rdp.password);
-    const user= useSelector((state: RootState) => state.rdp.username);
+    const port = useSelector((state: RootState) => state.rdp.cfg.port);
+    const host= useSelector((state: RootState) => state.rdp.cfg.host);
+    const password= useSelector((state: RootState) => state.rdp.cfg.password);
+    const user= useSelector((state: RootState) => state.rdp.cfg.username);
 
     return (
       <Modal show={show} onHide={()=>setShow(false)}>
@@ -36,7 +36,7 @@ function ConfigModal() {
                 <span>Password</span>
                 </Col>
                 <Col xs={8}>
-                <input value={password} className="w-100" onChange={e=>dispatch(setPass(e.target.value))}></input>
+                <input value={password} type="password" className="w-100" onChange={e=>dispatch(setPass(e.target.value))}></input>
                 </Col>
             </Row>
             <Row className="my-1">

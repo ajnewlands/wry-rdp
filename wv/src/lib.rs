@@ -23,7 +23,6 @@ use log::*;
 pub struct MainWindow {
     webview: wry::webview::WebView,
     event_loop: wry::application::event_loop::EventLoop<CustomEvents>,
-    port: u16,
 }
 
 //const MAINSCRIPT: &str = include_str!("../js/main.js");
@@ -37,7 +36,7 @@ impl MainWindow {
     pub fn new(port_rx: tokio::sync::oneshot::Receiver<u16>) -> Result<Self> {
         let event_loop = EventLoop::<CustomEvents>::with_user_event();
         let window = WindowBuilder::new()
-            .with_title("Hello World")
+            .with_title("RDP-WRY")
             .with_visible(false)
             .build(&event_loop)?;
         let port = port_rx.blocking_recv().unwrap();
@@ -84,7 +83,6 @@ impl MainWindow {
         Ok(MainWindow {
             webview,
             event_loop,
-            port,
         })
     }
 

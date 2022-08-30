@@ -2,32 +2,19 @@ mod rdp;
 use std::net::ToSocketAddrs;
 
 use anyhow::{anyhow, Result};
+use messages::*;
 use rdp::*;
 
 use log::*;
 
-pub struct RDPConfiguration {
-    hostname: String,
-    username: String,
-    password: String,
-    port: u16,
-}
+use tokio::sync::mpsc::error::TryRecvError;
+use tokio::sync::{mpsc, OnceCell};
 
-impl RDPConfiguration {
-    pub fn new(hostname: String, port: u16, username: String, password: String) -> Self {
-        Self {
-            hostname,
-            username,
-            password,
-            port,
-        }
-    }
-}
+pub static SCREEN_TX: OnceCell<mpsc::UnboundedSender<Vec<u8>>> = OnceCell::const_new();
 
 #[repr(C)]
 struct RDPContext {
     common: rdp::rdpClientContext,
-    hostname: String,
 }
 
 const TRUE: i32 = 1;
@@ -49,38 +36,33 @@ extern "C" fn rdp_global_init() -> i32 {
 extern "C" fn rdp_global_uninit() {}
 
 extern "C" fn rdp_pre_connect(instance: *mut rdp::freerdp) -> i32 {
-    info!("TODO rdp_pre_connect()");
-
     unsafe {
         // Lint was refusing to dereference these automatically.
         (*(*(*instance).context).settings).OsMajorType = rdp::OSMAJORTYPE_WINDOWS;
         (*(*(*instance).context).settings).OsMinorType = rdp::OSMINORTYPE_WINDOWS_NT;
         (*(*(*instance).context).settings).ConnectionType = CONNECTION_TYPE_AUTODETECT;
         (*(*(*instance).context).settings).IgnoreCertificate = 1;
-
-        info!("TODO subscribe channels in rdp_pre_connect()");
     }
 
     TRUE
 }
 
 extern "C" fn rdp_begin_paint(_context: *mut rdp_context) -> i32 {
-    info!("TODO rdp_begin_paint()");
-
     TRUE
 }
 extern "C" fn rdp_end_paint(context: *mut rdp_context) -> i32 {
-    info!("TODO rdp_end_paint()");
-
     unsafe {
+        let screen_tx = SCREEN_TX
+            .get()
+            .expect("rdp::SCREEN_TX is not initialized in rdp_end_paint()");
         let invalid = (*(*(*(*(*context).gdi).primary).hdc).hwnd).ninvalid;
-        info!("There are {} invalid regions", invalid);
 
+        /*
         for i in 0..invalid {
             let region = (*(*(*(*(*context).gdi).primary).hdc).hwnd)
                 .cinvalid
                 .offset(i as isize);
-            info!(
+            trace!(
                 "Invalid region {} x: {}, y: {}, h: {}, w: {}",
                 i,
                 (*region).x,
@@ -89,28 +71,20 @@ extern "C" fn rdp_end_paint(context: *mut rdp_context) -> i32 {
                 (*region).w
             );
         }
-
-        /*
-        // THIS IS AN EXAMPLE OF HOW WE CAN ACCESS THE FRAMEBUFFER
-        let screen_width = (*(*context).gdi).width as u32;
-        let screen_height = (*(*context).gdi).height as u32;
-
-        info!("Saving bitmap dims {}x{}", screen_width, screen_height);
-        let data = std::slice::from_raw_parts(
-            (*(*context).gdi).primary_buffer,
-            (screen_width * screen_height * 4) as usize,
-        );
-
-        image::save_buffer(
-            "./output.bmp",
-            data,
-            screen_width,
-            screen_height,
-            image::ColorType::Rgba8,
-        )
-        .unwrap();
-        std::mem::forget(data);
         */
+
+        // Dump the content of the framebuffer down the websocket
+        if invalid > 0 {
+            let screen_width = (*(*context).gdi).width as u32;
+            let screen_height = (*(*context).gdi).height as u32;
+
+            let data = std::slice::from_raw_parts(
+                (*(*context).gdi).primary_buffer,
+                (screen_width * screen_height * 4) as usize,
+            );
+            screen_tx.send(data.to_vec()).unwrap();
+            std::mem::forget(data);
+        }
 
         (*(*(*(*(*(*context).gdi).primary).hdc).hwnd).invalid).null = TRUE;
         (*(*(*(*(*context).gdi).primary).hdc).hwnd).ninvalid = 0;
@@ -120,7 +94,7 @@ extern "C" fn rdp_end_paint(context: *mut rdp_context) -> i32 {
 }
 
 extern "C" fn rdp_desktop_resize(_context: *mut rdp_context) -> i32 {
-    info!("Resize desktop");
+    info!("TODO Resize desktop");
 
     TRUE
 }
@@ -130,7 +104,6 @@ fn get_rdp_pixel_format(bpp: u32, tp: u32, a: u32, r: u32, g: u32, b: u32) -> u3
 }
 
 extern "C" fn rdp_post_connect(instance: *mut rdp::freerdp) -> i32 {
-    info!("TODO rdp_post_connect()");
     let pixel_format_rgbx32 =
         get_rdp_pixel_format(32, rdp::FREERDP_PIXEL_FORMAT_TYPE_RGBA, 0, 8, 8, 8);
 
@@ -144,7 +117,6 @@ extern "C" fn rdp_post_connect(instance: *mut rdp::freerdp) -> i32 {
         (*(*(*instance).context).update).DesktopResize = Some(rdp_desktop_resize);
     }
 
-    info!("Completed rdp_post_connect()");
     TRUE
 }
 
@@ -170,8 +142,6 @@ extern "C" fn rdp_logon_error_info(_instance: *mut rdp::freerdp, data: u32, ty: 
 }
 
 extern "C" fn rdp_client_new(instance: *mut rdp::freerdp, context: *mut rdp_context) -> i32 {
-    info!("TODO rdp_client_new()");
-
     let ctx = context as *mut RDPContext;
 
     if instance.is_null() {
@@ -243,7 +213,44 @@ fn rdp_lasterror(tag: &str, instance: *mut rdp::freerdp) -> u32 {
     }
 }
 
-extern "C" fn rdp_client_thread_proc(instance: *mut rdp::freerdp) -> bool {
+extern "C" fn handle_mouse_input(input: *mut rdp_input, mouse_event: MouseEvent) {
+    unsafe {
+        let mut flags = 0;
+        flags |= match mouse_event.action.as_str() {
+            "down" => rdp::PTR_FLAGS_DOWN,
+            "up" => 0,
+            _ => rdp::PTR_FLAGS_MOVE,
+        };
+
+        flags |= match mouse_event.button.as_str() {
+            "left" => rdp::PTR_FLAGS_BUTTON1,
+            "middle" => rdp::PTR_FLAGS_BUTTON3,
+            "right" => rdp::PTR_FLAGS_BUTTON2,
+            _ => 0,
+        };
+
+        let rc = freerdp_input_send_mouse_event(
+            input,
+            flags as u16,
+            mouse_event.x.try_into().unwrap(),
+            mouse_event.y.try_into().unwrap(),
+        );
+    }
+}
+
+extern "C" fn handle_input(input: *mut rdp_input, event: FromBrowserMessages) {
+    match event {
+        FromBrowserMessages::MouseEvent(me) => {
+            handle_mouse_input(input, me);
+        }
+        unhandled => log::warn!("Discarding unhandled input event: {:?}", unhandled),
+    }
+}
+
+extern "C" fn rdp_client_thread_proc(
+    instance: *mut rdp::freerdp,
+    mut command_rx: mpsc::UnboundedReceiver<FromBrowserMessages>,
+) -> bool {
     info!("starting rdp_client_thread_proc()");
 
     unsafe {
@@ -275,10 +282,21 @@ extern "C" fn rdp_client_thread_proc(instance: *mut rdp::freerdp) -> bool {
                 events.as_mut_ptr(),
                 MAXIMUM_RDP_WAIT_OBJECTS as u32,
             );
-            info!("Event count is {}", count);
+            trace!("Event count is {}", count);
 
-            let status = rdp::WaitForMultipleObjects(count, events.as_mut_ptr(), FALSE, 100);
-            info!("Wait status: {}", status);
+            // Apparently most people cannot hit a key twice consecutively with a gap much smaller than 100ms
+            let status = rdp::WaitForMultipleObjects(count, events.as_mut_ptr(), FALSE, 25);
+            trace!("Wait status: {}", status);
+            loop {
+                match command_rx.try_recv() {
+                    Ok(ev) => handle_input((*(*instance).context).input, ev),
+                    Err(TryRecvError::Empty) => break,
+                    Err(e) => {
+                        log::error!("Failed receiving more input events: {:?}", e);
+                        break;
+                    }
+                }
+            }
 
             if rdp::freerdp_check_event_handles((*instance).context) == FALSE {
                 rdp_lasterror("Failed checking RDP event handles", instance);
@@ -293,23 +311,25 @@ extern "C" fn rdp_client_thread_proc(instance: *mut rdp::freerdp) -> bool {
 pub struct RDP {
     context: *mut rdp::rdp_context,
 }
+unsafe impl Send for RDP {}
+unsafe impl Sync for RDP {}
 
 impl RDP {
     pub fn new(cfg: RDPConfiguration) -> Result<Self> {
         info!(
             "Attempting to establish RDP client for {}:{}",
-            cfg.hostname, cfg.port
+            cfg.host, cfg.port
         );
-        if let Err(_) = format!("{}:0", cfg.hostname).to_socket_addrs() {
+        if let Err(_) = format!("{}:0", cfg.host).to_socket_addrs() {
             return Err(anyhow!("Unable to resolve host."));
         }
 
         let mut cep = rdp_client_entry();
         unsafe {
             let root = rdp::WLog_GetRoot();
-            rdp::WLog_SetLogLevel(root, 0);
+            rdp::WLog_SetLogLevel(root, 1);
             let context = rdp::freerdp_client_context_new(&mut cep);
-            let server_hostname = std::ffi::CString::new(cfg.hostname).unwrap();
+            let server_hostname = std::ffi::CString::new(cfg.host).unwrap();
             (*(*context).settings).ServerHostname = server_hostname.into_raw();
             (*(*context).settings).ServerPort = cfg.port as u32;
             let username = std::ffi::CString::new(cfg.username).unwrap();
@@ -331,9 +351,9 @@ impl RDP {
         }
     }
 
-    pub fn start(self) -> Result<()> {
+    pub fn start(&self, command_rx: mpsc::UnboundedReceiver<FromBrowserMessages>) -> Result<()> {
         unsafe {
-            if !rdp_client_thread_proc((*self.context).instance) {
+            if !rdp_client_thread_proc((*self.context).instance, command_rx) {
                 error!("rdp_client_thread_proc() returned false..");
                 return Err(anyhow!("Failed to start RDP process"));
             }

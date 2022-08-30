@@ -1,5 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
+import { requestRDPConnection } from './wsSlice';
 
 export enum ConnectionStatus {
     NotConnected,
@@ -7,30 +8,40 @@ export enum ConnectionStatus {
     Connected
 }
 
+export type RDPConfiguration = {
+    host: string,
+    username: string,
+    password: string,
+    port: number,
+};
+
 const rdpSlice = createSlice({
     name: 'rdp',
     initialState: {
-        host: "127.0.0.1",
-        username: "",
-        password: "",
-        port: 3389,
+        cfg: {
+            host: "127.0.0.1",
+            username: "",
+            password: "",
+            port: 3389
+        },
         status: ConnectionStatus.NotConnected,
     },
     reducers: {
         setPort: (state, action: PayloadAction<number>) => {
-            state.port = action.payload;
+            state.cfg.port = action.payload;
         },
         setUser: (state, action: PayloadAction<string>) => {
-            state.username = action.payload;
+            state.cfg.username = action.payload;
         },
         setPass: (state, action: PayloadAction<string>) => {
-            state.password = action.payload;
+            state.cfg.password = action.payload;
         },
         setHost: (state, action: PayloadAction<string>) => {
-            state.host = action.payload;
+            state.cfg.host = action.payload;
         },
         connect: (state) => {
             state.status = ConnectionStatus.Connecting;
+            requestRDPConnection(state.cfg);
         }
     }
 })

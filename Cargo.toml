@@ -1,3 +1,3 @@
 [workspace]
 
-members = [ "rdp", "wv", "ws", "rdp-wry" ]
+members = [ "messages", "rdp", "wv", "ws", "rdp-wry" ]

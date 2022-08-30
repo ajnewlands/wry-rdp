@@ -8,6 +8,7 @@
 #include <freerdp/client/cliprdr.h>
 #include <freerdp/client/channels.h>
 #include <freerdp/channels/channels.h>
+#include <freerdp/input.h>
 
 #include <winpr/crt.h>
 #include <winpr/assert.h>
