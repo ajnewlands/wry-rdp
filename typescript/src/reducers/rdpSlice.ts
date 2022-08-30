@@ -1,4 +1,4 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { requestRDPConnection } from './wsSlice';
 
@@ -42,9 +42,14 @@ const rdpSlice = createSlice({
         connect: (state) => {
             state.status = ConnectionStatus.Connecting;
             requestRDPConnection(state.cfg);
+        },
+        rdp_shutdown: (state) => {
+            state.status = ConnectionStatus.NotConnected;
+            const canvas = document.getElementById('rdp-canvas') as HTMLCanvasElement;
+            canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
         }
     }
 })
 
-export const { setPort, setUser, setHost, setPass, connect } = rdpSlice.actions;
+export const { setPort, setUser, setHost, setPass, connect, rdp_shutdown } = rdpSlice.actions;
 export default rdpSlice.reducer

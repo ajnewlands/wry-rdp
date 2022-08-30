@@ -278,7 +278,7 @@ fn handle_input(input: *mut rdp_input, event: FromBrowserMessages) {
 
 fn rdp_client_thread_proc(
     instance: *mut rdp::freerdp,
-    mut command_rx: mpsc::UnboundedReceiver<FromBrowserMessages>,
+    command_rx: &mut mpsc::UnboundedReceiver<FromBrowserMessages>,
 ) -> bool {
     info!("starting rdp_client_thread_proc()");
 
@@ -339,12 +339,16 @@ fn rdp_client_thread_proc(
 
 pub struct RDP {
     context: *mut rdp::rdp_context,
+    command_rx: mpsc::UnboundedReceiver<FromBrowserMessages>,
 }
 unsafe impl Send for RDP {}
 unsafe impl Sync for RDP {}
 
 impl RDP {
-    pub fn new(cfg: RDPConfiguration) -> Result<Self> {
+    pub fn new(
+        cfg: RDPConfiguration,
+        command_rx: mpsc::UnboundedReceiver<FromBrowserMessages>,
+    ) -> Result<Self> {
         info!(
             "Attempting to establish RDP client for {}:{}",
             cfg.host, cfg.port
@@ -376,13 +380,16 @@ impl RDP {
                 std::process::exit(1);
             }
 
-            return Ok(RDP { context });
+            return Ok(RDP {
+                context,
+                command_rx,
+            });
         }
     }
 
-    pub fn start(&self, command_rx: mpsc::UnboundedReceiver<FromBrowserMessages>) -> Result<()> {
+    pub fn start(&mut self) -> Result<()> {
         unsafe {
-            if !rdp_client_thread_proc((*self.context).instance, command_rx) {
+            if !rdp_client_thread_proc((*self.context).instance, &mut self.command_rx) {
                 error!("rdp_client_thread_proc() returned false..");
                 return Err(anyhow!("Failed to start RDP process"));
             }

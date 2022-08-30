@@ -1,6 +1,10 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import type { RDPConfiguration } from './rdpSlice';
+import { RDPConfiguration, rdp_shutdown } from './rdpSlice';
+import { store } from '../store';
+
+import { useDispatch } from 'react-redux';
+import { rdpShutdown } from '../store';
 
 export var WEBSOCKET: WebSocket;
 
@@ -17,6 +21,12 @@ function updateCanvas(data: ArrayBuffer) {
     ctx.putImageData(idata, 0, 0);
 }
 
+function rdpClose() {
+    console.log(`shutdown`);
+    //rdpShutdown();
+    //store.dispatch(rdp_shutdown());
+}
+
 export function connectWebsocket(address) {
     console.log(`creating new socket connection to ${address}`);
     WEBSOCKET = new WebSocket(`ws://${address}`);
@@ -25,13 +35,7 @@ export function connectWebsocket(address) {
         console.log(`Internal socket connection established`);
     };
 
-    WEBSOCKET.onmessage = (event) => {
-        if (event.data instanceof ArrayBuffer) {
-            updateCanvas(event.data);
-        } else {
-            console.log(`WS received: ${event.data}`);
-        }
-    }
+
 
     WEBSOCKET.onerror = (ev) => {
         console.error(`Internal socket threw an error: ${ev}`);

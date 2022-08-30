@@ -1,8 +1,10 @@
 use anyhow::Result;
-use futures_util::{future, SinkExt, StreamExt, TryStreamExt};
+use futures_util::{SinkExt, StreamExt};
 use log::info;
+use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, Notify};
+use tokio_tungstenite::tungstenite::Message;
 
 use messages::FromBrowserMessages;
 
@@ -42,6 +44,7 @@ async fn accept_connection(stream: TcpStream) {
         .expect("rdp::SCREEN_TX already initialized");
 
     let mut o_command_tx = None;
+    let rdp_done = Arc::new(Notify::new());
 
     loop {
         tokio::select! {
@@ -51,10 +54,12 @@ async fn accept_connection(stream: TcpStream) {
                     match serde_json::from_slice::<FromBrowserMessages>(&msg.into_data()).unwrap() {
                         FromBrowserMessages::RDPConnect(cfg) => {
                             let (command_tx, command_rx) = mpsc::unbounded_channel::<FromBrowserMessages>();
+                            let rdp_done_cl = rdp_done.clone();
                             o_command_tx = Some(command_tx);
                             let _rdp_thread = std::thread::spawn(move || {
-                                let rdp = rdp::RDP::new(cfg).unwrap();
-                                rdp.start(command_rx).unwrap();
+                                let mut rdp = rdp::RDP::new(cfg, command_rx).unwrap();
+                                rdp.start().unwrap();
+                                rdp_done_cl.notify_one();
                             });
                         }
                         msg => {
@@ -80,11 +85,17 @@ async fn accept_connection(stream: TcpStream) {
             },
             rx = screen_rx.recv() =>  {
                 if let Some(data) = rx {
-                    write.send(tokio_tungstenite::tungstenite::Message::Binary(data)).await.expect(
+                    write.send(Message::Binary(data)).await.expect(
                      "Failed to send screen via websocket"
                     );
 
                 }
+            }
+            _ = rdp_done.notified() => {
+                log::info!("RDP signals done");
+                write.send(Message::Text(serde_json::json!({
+                    "kind": "rdp_close",
+                }).to_string())).await.expect("Failed to send RDP shutdown via websocket");
             }
         }
     }

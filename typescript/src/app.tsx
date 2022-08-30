@@ -6,19 +6,52 @@ import { Provider } from 'react-redux'
 import { RootState, store } from './store';
 import { useSelector } from 'react-redux';
 
-import { createBootstrapComponent } from 'react-bootstrap/esm/ThemeProvider';
-import { ConnectionStatus } from './reducers/rdpSlice';
+import { ConnectionStatus, rdp_shutdown } from './reducers/rdpSlice';
 import { connectWebsocket, WEBSOCKET } from './reducers/wsSlice';
 
 
 
-//@ts-ignore this is injected by the loader process.
-connectWebsocket(WEBSOCKETADDRESS);
 //@ts-ignore typescript doesn't know about the webview extensions
 window.ipc.postMessage('make-visible');
 
+//@ts-ignore this is injected by the loader process.
+connectWebsocket(WEBSOCKETADDRESS);
+
+function updateCanvas(data: ArrayBuffer) {
+    let canvas = document.getElementById('rdp-canvas') as HTMLCanvasElement;
+    // Right now for test data === the entire screen
+    // And maybe that would be best going forwards too - buffer in the Rust side,
+    // apply diffs there and present JS with the whole screen.
+
+    // For now we have hardcoded the size as 1024x768
+    let ctx = canvas.getContext('2d');
+    var idata = ctx.createImageData(1024, 768);
+    idata.data.set(new Uint8Array(data));
+    ctx.putImageData(idata, 0, 0);
+}
+
+
 const App = () => {
     const state = useSelector((state: RootState) => state);
+
+				React.useEffect(() => {
+WEBSOCKET.onmessage = (event) => {
+    if (event.data instanceof ArrayBuffer) {
+        updateCanvas(event.data);
+    } else {
+        const obj = JSON.parse(event.data);
+        console.log(`Got message: ${event.data}`);
+        switch (obj.kind) {
+            case "rdp_close":
+                store.dispatch(rdp_shutdown());
+                break;
+            default:
+                console.log(`unhandled socket message, kind is ${obj.kind}`);
+        }
+    }
+}
+
+				}, [])
 
     return (<>
         {state.rdp.status === ConnectionStatus.NotConnected && <ConfigModal />}
