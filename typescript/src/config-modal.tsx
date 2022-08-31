@@ -18,7 +18,7 @@ function ConfigModal() {
 
     return (
       <Modal show={show} onHide={()=>setShow(false)}>
-        <Modal.Header closeButton>
+        <Modal.Header >
           <Modal.Title>Connection Settings</Modal.Title>
         </Modal.Header>
 

@@ -10,6 +10,7 @@ log="0.4"
 anyhow="1"
 messages={ path="../messages"}
 tokio={version="1", features=["sync", "parking_lot"]}
+flatbuffers="2.1"
 
 [build-dependencies]
 bindgen="0.60"

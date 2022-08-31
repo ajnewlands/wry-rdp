@@ -1,9 +1,6 @@
 use anyhow::Result;
 use wry::{
-    application::{
-        event_loop::{EventLoop, EventLoopProxy},
-        window::WindowBuilder,
-    },
+    application::{event_loop::EventLoop, window::WindowBuilder},
     webview::WebViewBuilder,
 };
 
@@ -21,7 +18,7 @@ use log::*;
 
 /// Implements the main window of the rdp user interface via wry webview
 pub struct MainWindow {
-    webview: wry::webview::WebView,
+    _webview: wry::webview::WebView,
     event_loop: wry::application::event_loop::EventLoop<CustomEvents>,
 }
 
@@ -81,7 +78,7 @@ impl MainWindow {
         webview.open_devtools();
 
         Ok(MainWindow {
-            webview,
+            _webview: webview,
             event_loop,
         })
     }

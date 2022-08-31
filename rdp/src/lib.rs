@@ -74,6 +74,10 @@ extern "C" fn rdp_end_paint(context: *mut rdp_context) -> i32 {
         */
 
         // Dump the content of the framebuffer down the websocket
+        // It would also be possible to transfer just the deltas in e.g. a flatbuffer
+        // and if there were an actual network involved this would be a great idea.
+        // However, we are using only a loopback socket for IPC and performance is
+        // surprisingly good as is, so no need for the extra complexity.
         if invalid > 0 {
             let screen_width = (*(*context).gdi).width as u32;
             let screen_height = (*(*context).gdi).height as u32;
@@ -93,12 +97,14 @@ extern "C" fn rdp_end_paint(context: *mut rdp_context) -> i32 {
     TRUE
 }
 
+/// We don't actually support resizing the desktop at the moment.
 extern "C" fn rdp_desktop_resize(_context: *mut rdp_context) -> i32 {
-    info!("TODO Resize desktop");
+    warn!("TODO Resize desktop");
 
     TRUE
 }
 
+/// Construct the appropriate identified for RGBx, 24 bit colour packed into 32 bits.
 fn get_rdp_pixel_format(bpp: u32, tp: u32, a: u32, r: u32, g: u32, b: u32) -> u32 {
     (bpp << 24) + (tp << 16) | (a << 12) | (r << 8) | (g << 4) | b
 }
@@ -120,8 +126,10 @@ extern "C" fn rdp_post_connect(instance: *mut rdp::freerdp) -> i32 {
     TRUE
 }
 
-extern "C" fn rdp_post_disconnect(_instance: *mut rdp::freerdp) {
-    info!("TODO rdp_post_disconnect()");
+extern "C" fn rdp_post_disconnect(instance: *mut rdp::freerdp) {
+    unsafe {
+        rdp::gdi_free(instance);
+    }
 }
 
 extern "C" fn rdp_logon_error_info(_instance: *mut rdp::freerdp, data: u32, ty: u32) -> i32 {
@@ -165,17 +173,17 @@ extern "C" fn rdp_client_new(instance: *mut rdp::freerdp, context: *mut rdp_cont
 }
 
 extern "C" fn rdp_client_free(_instance: *mut rdp::freerdp, _context: *mut rdp_context) {
-    info!("TODO rdp_client_free()");
+    debug!("TODO rdp_client_free()");
 }
 
 extern "C" fn rdp_client_start(_context: *mut rdp_context) -> i32 {
-    info!("TODO rdp_client_start()");
+    debug!("TODO rdp_client_start()");
 
     0
 }
 
 extern "C" fn rdp_client_stop(_context: *mut rdp_context) -> i32 {
-    info!("TODO rdp_client_stop()");
+    debug!("TODO rdp_client_stop()");
 
     0
 }
@@ -238,6 +246,9 @@ fn handle_mouse_input(input: *mut rdp_input, mouse_event: MouseEvent) {
     }
 }
 
+/// Currently we handled normal letter/symbol keys and backspace.
+/// Other special keys would be implemented by adding the appropriate
+/// keycodes lifted from the freerdp headers.
 fn handle_key_input(input: *mut rdp_input, key_event: KeyboardEvent) {
     let flags = match key_event.action.as_str() {
         "up" => rdp::KBD_FLAGS_RELEASE,
@@ -314,6 +325,7 @@ fn rdp_client_thread_proc(
             trace!("Event count is {}", count);
 
             // Apparently most people cannot hit a key twice consecutively with a gap much smaller than 100ms
+            // so this fairly basic wait-poll loop shouldn't cause any noticable input delays.
             let status = rdp::WaitForMultipleObjects(count, events.as_mut_ptr(), FALSE, 25);
             trace!("Wait status: {}", status);
             loop {
@@ -332,6 +344,7 @@ fn rdp_client_thread_proc(
                 break;
             }
         }
+        rdp::freerdp_disconnect(instance);
     }
 
     true

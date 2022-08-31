@@ -34,24 +34,22 @@ function updateCanvas(data: ArrayBuffer) {
 const App = () => {
     const state = useSelector((state: RootState) => state);
 
-				React.useEffect(() => {
-WEBSOCKET.onmessage = (event) => {
-    if (event.data instanceof ArrayBuffer) {
-        updateCanvas(event.data);
-    } else {
-        const obj = JSON.parse(event.data);
-        console.log(`Got message: ${event.data}`);
-        switch (obj.kind) {
-            case "rdp_close":
-                store.dispatch(rdp_shutdown());
-                break;
-            default:
-                console.log(`unhandled socket message, kind is ${obj.kind}`);
+	React.useEffect(() => {
+        WEBSOCKET.onmessage = (event) => {
+            if (event.data instanceof ArrayBuffer) {
+                updateCanvas(event.data);
+            } else {
+                const obj = JSON.parse(event.data);
+                switch (obj.kind) {
+                    case "rdp_close":
+                        store.dispatch(rdp_shutdown());
+                        break;
+                    default:
+                        console.log(`unhandled socket message, kind is ${obj.kind}`);
+                }
+            }
         }
-    }
-}
-
-				}, [])
+	}, [])
 
     return (<>
         {state.rdp.status === ConnectionStatus.NotConnected && <ConfigModal />}

@@ -8,23 +8,16 @@ import { rdpShutdown } from '../store';
 
 export var WEBSOCKET: WebSocket;
 
-function updateCanvas(data: ArrayBuffer) {
+export function updateCanvas(data: ArrayBuffer) {
     let canvas = document.getElementById('rdp-canvas') as HTMLCanvasElement;
-    // Right now for test data === the entire screen
-    // And maybe that would be best going forwards too - buffer in the Rust side,
-    // apply diffs there and present JS with the whole screen.
+    // Right now for test data === the entire screen painted on each update
+    // as discussed in the Rust rdp module.
 
-    // For now we have hardcoded the size as 1024x768
+    // For exploratory purposes we have hardcoded the size as 1024x768
     let ctx = canvas.getContext('2d');
     var idata = ctx.createImageData(1024, 768);
     idata.data.set(new Uint8Array(data));
     ctx.putImageData(idata, 0, 0);
-}
-
-function rdpClose() {
-    console.log(`shutdown`);
-    //rdpShutdown();
-    //store.dispatch(rdp_shutdown());
 }
 
 export function connectWebsocket(address) {
